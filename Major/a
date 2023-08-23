@@ -1,0 +1,112 @@
+import cv2
+from tkinter import Tk, Label, Button
+from PIL import Image, ImageTk
+import json
+import os
+
+root = Tk()
+root.title("Waste Collector Screen")
+root.attributes('-fullscreen', True)  # Open the window in full screen
+
+# Set the background image
+background_image = Image.open("C:/Users/LENOVO/OneDrive/Desktop/portfolio/Major/overlay-bg.jpg")
+window_width = root.winfo_screenwidth()
+window_height = root.winfo_screenheight()
+background_image = background_image.resize((window_width, window_height), Image.ANTIALIAS)
+background_photo = ImageTk.PhotoImage(background_image)
+background_label = Label(root, image=background_photo)
+background_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+# Create a flag to track if 'q' key is pressed
+stop_execution = False
+
+def stopExecution(event):
+    global stop_execution
+    stop_execution = True
+
+# Bind the 'q' key to the stopExecution function
+root.bind('q', stopExecution)
+
+
+def runVideo():
+    template = cv2.imread('template/template.jpg')
+    template = cv2.resize(template, (150, 150))
+    w = template.shape[1]
+    h = template.shape[0]
+    
+    # Load user details from JSON file
+    with open('C:/Users/LENOVO/OneDrive/Desktop/portfolio/Major/user_details/user_details_1.json') as json_file:
+        details = json.load(json_file)
+        name = details["name"]
+        location = details["location"]
+        description = details["description"]
+        video_path = details["video_path"]
+
+    if os.path.exists(video_path):
+        video = cv2.VideoCapture(video_path)
+        msg = ''
+        
+        while True:
+            ret, frame = video.read()
+            print(ret)
+            if ret:
+                cv2.imwrite("test.jpg", frame)
+                img = cv2.imread("test.jpg")
+                img = cv2.resize(img, (300, 300))
+                img2 = img.copy()
+                img = img2.copy()
+                method = eval('cv2.TM_CCOEFF_NORMED')
+                res = cv2.matchTemplate(img, template, method)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                x = min_loc[0]
+                y = max_loc[0]
+                x1 = min_loc[1]
+                y1 = min_loc[1]
+                msg = "Waste Not Detected"
+                if (x - y) < 45 and (x1 - y1) < 45:
+                    msg = "Waste Detected"
+                print(str(min_val) + " " + str(max_val) + " " + str(min_loc) + " " + str(max_loc))
+                if method in [cv2.TM_SQDIFF, cv2.TM_SQDIFF_NORMED]:
+                    top_left = min_loc
+                else:
+                    top_left = max_loc
+                bottom_right = (top_left[0] + w, top_left[1] + h)
+                if (x - y) < 45 and (x1 - y1) < 45:
+                    cv2.rectangle(img, top_left, bottom_right, 155, 2)
+    
+                # Overlay user details on the video frame
+                text_label = f"Name: {name}  Location: {location}  Description: {description}"
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5
+                font_color = (0, 0, 0)  # Black color
+                text_size, _ = cv2.getTextSize(text_label, font, font_scale, 1)
+                text_x = img.shape[1] - text_size[0] - 20  # Position on the top right corner
+                text_y = 20
+                cv2.putText(img, text_label, (text_x, text_y), font, font_scale, font_color, 2)
+    
+                cv2.namedWindow('Frame', cv2.WINDOW_FULLSCREEN)
+                cv2.setWindowProperty('Frame', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.imshow('Frame', img)
+                if cv2.waitKey(3) & 0xFF == ord('q'):
+                    break
+            else:
+                break
+    
+        video.release()
+        cv2.destroyAllWindows()
+    else:
+        print(f"Video file not found at path: {video_path}")
+
+font = ('times', 24, 'bold')
+title = Label(root, text='Location Based Waste detection Application', justify='center')
+title.config(bg='PaleGreen2', fg='Khaki4')
+title.config(font=font)
+title.place(x=400, y=50)
+
+font1 = ('times', 14, 'bold')
+upload = Button(root, text="Upload Video", command=runVideo)
+upload.place(x=650, y=200)
+upload.config(font=font1)
+
+root.config(bg='brown')
+root.mainloop()

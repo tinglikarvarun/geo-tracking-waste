@@ -1,0 +1,2 @@
+python WasteCollector.py
+pause
